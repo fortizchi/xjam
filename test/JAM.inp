@@ -1,0 +1,14 @@
+#"option:"
+#1. Planar (PL)
+#2. Binary planar (BPL)
+#3. Buckled (BU)
+#4. Binary Buckled (BBU)
+
+option       4
+num_layers   5
+poscargen    T
+atom_list    As P
+latticep     3.44
+z_vacuum     20.0
+buckling     0.0
+distance     3.6
