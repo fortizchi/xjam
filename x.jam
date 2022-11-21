@@ -1,0 +1,149 @@
+#!/usr/bin/env python3
+import os
+import numpy as np
+from timeit     import default_timer as timer
+from itertools  import permutations, product
+from xjam.jamio import get_a_int, get_str_list, get_a_float
+from xjam.jamd  import conv2pseudocanonic, disc_equivalents, nparray2chain, chain2nparray
+from xjam.jamp  import build_poscarx
+#-------------------------------------
+log_file='JAM.out'
+def xprint(chain, salto=True, flag='a'):
+    xopen = open(log_file, flag)
+    if salto==True:  print(chain, file=xopen)
+    if salto==False: print(chain, end = ' ', file=xopen)
+    xopen.close()
+#-------------------------------------
+long_string = """#"option:"
+#1. Planar (PL)
+#2. Binary planar (BPL)
+#3. Buckled (BU)
+#4. Binary Buckled (BBU)
+
+option       4
+num_layers   5
+poscargen    F
+atom_list    As P
+latticep     3.44
+z_vacuum     20.0
+buckling     0.0
+distance     3.6"""
+#-------------------------------------
+if not os.path.isfile('JAM.inp'):
+    print('The JAM.inp file was not found.')
+    print('An example input file has been created.')
+    print('Please:\n (1) Edit the JAM.inp file\n (2) re-run x.jam')
+    exfile = open('JAM.inp', "w")
+    exfile.write(long_string)
+    exfile.close()
+    exit()
+#-------------------------------------
+option=get_a_int('option')
+if option not in [1,2,3,4,5,6]:
+    print('\'option\' is not a valid number')
+    exit()
+num_layers=get_a_int('num_layers')
+if num_layers <= 1:
+    print('\'num_layers\' is not a valid number')
+    exit()
+atom_list=get_str_list('atom_list')
+latticep=get_a_float('latticep')
+if latticep <= 0.0:
+    print('\'latticep\' is not a valid number')
+    exit()
+z_vacuum=get_a_float('z_vacuum')
+if z_vacuum <= 0.0:
+    print('\'z_vacuum\' is not a valid number')
+    exit()
+buckling=get_a_float('buckling')
+if buckling < 0.0:
+    print('\'buckling\' is not a valid number')
+    exit()
+d=get_a_float('distance')
+if d <= 0.0:
+    print('\'distance\' is not a valid number')
+    exit()
+poscargen=get_str_list('poscargen')
+#-------------------------------------
+opt1 = ['+0','+j','+j']
+opt2 = ['+0','+j','+k']
+opt3 = ['+0','+j','-j']
+opt4a= ['+0','+j','-k']
+opt4b= ['+0','-j','+k']
+if option ==  1:
+    filasDefinidas = list(set(permutations(opt1, 3)))
+if option ==  2:
+    filasDefinidas = list(set(permutations(opt2, 3)))
+if option ==  3:
+    filasDefinidas = list(set(permutations(opt3, 3)))
+if option ==  4:
+    filasDefinidas = list(set(permutations(opt4a, 3)))+list(set(permutations(opt4b, 3)))
+if option ==  5:
+    filasDefinidas = list(set(permutations(opt1, 3)))+list(set(permutations(opt2, 3)))
+if option ==  6:
+    filasDefinidas4 = list(set(permutations(opt4a, 3)))+list(set(permutations(opt4b, 3)))
+    filasDefinidas = list(set(permutations(opt3, 3)))+filasDefinidas4
+#-------------------------------------
+filsnparray = [np.array(i) for i in filasDefinidas]
+arraynorep = [np.array(i) for i in filasDefinidas]
+xprint('JAM log file\n', True, 'w')
+for case in range(2,num_layers+1,1):
+    xprint('##n=%d' %(case))
+    filejamstr='jamstrings'+str(case).zfill(3)+'.txt'
+    filejamstz='sjamstrings'+str(case).zfill(3)+'.txt'
+    if os.path.isfile(filejamstr):
+        xprint('%s .... exist. We take it' %(filejamstr))
+        cadenas = open(filejamstr,'r')
+        arraynorep=[]
+        for i, cadena in enumerate(cadenas):
+            ichain=cadena.rstrip()
+            ai=chain2nparray(ichain)
+            arraynorep.append(ai)
+        cadenas.close()
+    else:
+        start = timer()
+        xprint('Generation of all possible stacks ....', False, 'a')
+        nparraylistdn=[np.vstack([ai, newrow]) for ai in arraynorep for newrow in filsnparray]
+        nparraylistup=[np.vstack([newrow, ai]) for ai in arraynorep for newrow in filsnparray]
+        end = timer()
+        xprint('TIME = %f seconds' %(end - start))
+        start = timer()
+        xprint('Conversion to pseudocanonical forms ..', False, 'a')
+        nparraylistdn=[conv2pseudocanonic(ai) for ai in nparraylistdn]
+        nparraylistup=[conv2pseudocanonic(ai) for ai in nparraylistup]
+        canonicstacks=nparraylistdn + nparraylistup
+        end = timer()
+        xprint('TIME = %f seconds' %(end - start))
+        start = timer()
+        xprint('Discrimination of equivalent stacks ..', False, 'a')
+        arraynorep = disc_equivalents(canonicstacks,option,1)
+        arraynorep = disc_equivalents(arraynorep,option,2)
+        end = timer()
+        xprint('TIME = %f seconds' %(end - start))
+    xprint('Conversion to JAM format:')
+    if poscargen[0] == 'T':
+        folder='POSCAR_'+str(case).zfill(3)+'/'
+        if not os.path.exists(folder): os.system('mkdir %s' %(folder))
+    fopen = open(filejamstr,'w')
+    gopen = open(filejamstz,'w')
+    for i, ai in enumerate(arraynorep):
+        ichain=nparray2chain(ai)
+        ichbin=ichain.replace('j', atom_list[0])
+        if len(atom_list)==2: ichbin=ichbin.replace('k', atom_list[1])
+        if i==0:
+            xprint('%s) %s' %(str(i+1).zfill(5), ichbin))
+            xprint('.\n.')
+        if i==len(arraynorep)-1:
+            xprint('%s) %s' %(str(i+1).zfill(5), ichbin))
+        print('%s' %(ichain),file=fopen)
+        print('%s' %(ichbin),file=gopen)
+        if poscargen[0] == 'T':
+            file0='POSCAR_'+str(case).zfill(3)+'_'+str(i+1).zfill(6)+'.vasp'
+            #file0='POSCAR_'+str(case).zfill(3)
+            #flag='w' if i==0 else 'a'
+            build_poscarx(ai,ichbin,folder+file0,z_vacuum,case,d,latticep,atom_list,buckling,'w')
+
+    gopen.close()
+    fopen.close()
+    xprint('See all JAM strings at jamstrings%s.txt\n' %(str(case).zfill(3)))
+exit()

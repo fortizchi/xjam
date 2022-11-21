@@ -1,0 +1,12 @@
+README.md
+setup.py
+x.jam
+xjam/__init__.py
+xjam/jamd.py
+xjam/jamio.py
+xjam/jamp.py
+xjam.egg-info/PKG-INFO
+xjam.egg-info/SOURCES.txt
+xjam.egg-info/dependency_links.txt
+xjam.egg-info/requires.txt
+xjam.egg-info/top_level.txt
