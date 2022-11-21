@@ -17,6 +17,8 @@ git remote add origin https://github.com/fortizchi/xjam.git
 git push -u origin main
 #token
 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
+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
+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
 
 #MODO CONVENCIONAL. PRUEBA EN GITHUB
 git clone https://github.com/fortizchi/xjam
